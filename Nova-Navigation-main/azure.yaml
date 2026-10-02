@@ -1,0 +1,9 @@
+name: antigravity-navigator
+services:
+  web:
+    project: .
+    language: py
+    host: appservice
+    hooks:
+      prepackage:
+        - sh: pip install -r requirements.txt

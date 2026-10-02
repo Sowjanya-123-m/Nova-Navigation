@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity Navigator</title>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <!-- Leaflet Routing Machine CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" crossorigin=""/>
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer"/>
+  <!-- App styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="welcome-banner">
+  Welcome, {{ username }}
+  <a href="{{ url_for('main.logout') }}">Logout</a>
+</div>
+
+<!-- ══════════════════ TOP BAR ══════════════════ -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="brand-logo">A</div>
+    <div class="brand-text">
+      <span class="brand-name">Nova Navigation</span>
+      <span class="brand-sub">Real-Time Routing &amp; VRP Engine</span>
+    </div>
+  </div>
+
+  <div class="topbar-stats">
+    <div class="tstat blue">
+      <i class="fa fa-route"></i>
+      <div>
+        <div class="tstat-label">Total Distance</div>
+        <div class="tstat-value" id="topDistance">— km</div>
+      </div>
+    </div>
+    <div class="tstat green">
+      <i class="fa fa-clock"></i>
+      <div>
+        <div class="tstat-label">Est. Time</div>
+        <div class="tstat-value" id="topEta">— min</div>
+      </div>
+    </div>
+    <div class="tstat orange">
+      <i class="fa fa-gas-pump"></i>
+      <div>
+        <div class="tstat-label">Fuel Cost</div>
+        <div class="tstat-value" id="topFuel">₹—</div>
+      </div>
+    </div>
+    <div class="tstat red">
+      <i class="fa fa-triangle-exclamation"></i>
+      <div>
+        <div class="tstat-label">Traffic Delay</div>
+        <div class="tstat-value" id="topTraffic">— min</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="topbar-right">
+    <div class="weather-widget">
+      <i class="fa fa-sun weather-icon"></i>
+      <span>28°C</span>
+    </div>
+    <div class="date-widget">
+      <i class="fa fa-calendar"></i>
+      <div>
+        <span id="currentDate">—</span><br>
+        <span id="currentTime">—</span>
+      </div>
+    </div>
+    <div class="live-badge"><span class="live-dot"></span> Live</div>
+  </div>
+</header>
+
+<!-- ══════════════════ MAIN ══════════════════ -->
+<div class="layout">
+
+  <!-- ── LEFT SIDEBAR ── -->
+  <aside class="sidebar">
+
+    <div class="section-header">
+      <i class="fa fa-circle-dot"></i> ROUTE CONFIGURATION
+    </div>
+
+    <div class="form-group">
+      <label><i class="fa fa-location-dot"></i> From (Starting Location)</label>
+      <select id="from" class="form-select">
+        <option value="12.9716,77.5946">📍 Location A (Depot)</option>
+        <option value="12.9816,77.6146">📍 Location B</option>
+        <option value="12.9616,77.5846">📍 Location C</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label><i class="fa fa-map-pin"></i> To (Destination)</label>
+      <select id="to" class="form-select">
+        <option value="12.9416,77.6346">📍 Location F</option>
+        <option value="12.9316,77.5646">📍 Location D</option>
+        <option value="12.9916,77.6246">📍 Location E</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label><i class="fa fa-bolt"></i> Optimization Mode</label>
+      <select id="mode" class="form-select">
+        <option>⚡ Shortest Route (Distance)</option>
+        <option>🚀 Fastest Route</option>
+        <option>⛽ Fuel Efficient</option>
+        <option>🚦 Avoid Traffic</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label><i class="fa fa-diagram-project"></i> Graph Search (Algorithm)</label>
+      <select id="algo" class="form-select">
+        <option>🔷 Dijkstra (Shortest Path)</option>
+        <option>⭐ A* Search (Heuristic)</option>
+      </select>
+    </div>
+
+    <div class="section-header mt">
+      <i class="fa fa-star"></i> WAYPOINTS (STOP LOCATIONS)
+    </div>
+
+    <div id="waypointList">
+      <div class="waypoint-item" data-lat="12.9750" data-lng="77.6050">
+        <span class="drag-handle"><i class="fa fa-grip-vertical"></i></span>
+        <span class="wp-badge blue">1</span>
+        <span class="wp-label">Location B</span>
+        <span class="wp-priority high">High</span>
+        <button class="wp-remove" onclick="removeWaypoint(this)" title="Remove"><i class="fa fa-xmark"></i></button>
+      </div>
+      <div class="waypoint-item" data-lat="12.9650" data-lng="77.5900">
+        <span class="drag-handle"><i class="fa fa-grip-vertical"></i></span>
+        <span class="wp-badge orange">2</span>
+        <span class="wp-label">Location C</span>
+        <span class="wp-priority medium">Medium</span>
+        <button class="wp-remove" onclick="removeWaypoint(this)" title="Remove"><i class="fa fa-xmark"></i></button>
+      </div>
+      <div class="waypoint-item" data-lat="12.9550" data-lng="77.5750">
+        <span class="drag-handle"><i class="fa fa-grip-vertical"></i></span>
+        <span class="wp-badge green">3</span>
+        <span class="wp-label">Location D</span>
+        <span class="wp-priority low">Low</span>
+        <button class="wp-remove" onclick="removeWaypoint(this)" title="Remove"><i class="fa fa-xmark"></i></button>
+      </div>
+      <div class="waypoint-item" data-lat="12.9480" data-lng="77.5800">
+        <span class="drag-handle"><i class="fa fa-grip-vertical"></i></span>
+        <span class="wp-badge green">4</span>
+        <span class="wp-label">Location E</span>
+        <span class="wp-priority low">Low</span>
+        <button class="wp-remove" onclick="removeWaypoint(this)" title="Remove"><i class="fa fa-xmark"></i></button>
+      </div>
+    </div>
+
+    <div class="wp-actions">
+      <button class="btn-add-stop" onclick="addStop()">
+        <i class="fa fa-plus"></i> Add Stop
+      </button>
+      <button class="btn-clear-all" onclick="clearAllWaypoints()">Clear All</button>
+    </div>
+
+    <div class="section-header mt">
+      <i class="fa fa-truck"></i> VEHICLE (VRP)
+    </div>
+    <div class="form-group">
+      <select id="vehicle" class="form-select">
+        <option>🚛 Truck 1 (Capacity: 1000 kg)</option>
+        <option>🚐 Van 1 (Capacity: 500 kg)</option>
+        <option>🚗 Car 1 (Capacity: 200 kg)</option>
+      </select>
+    </div>
+
+    <button class="btn-optimize" onclick="generateRoute()">
+      <i class="fa fa-bolt"></i> Optimize Route
+    </button>
+
+  </aside>
+
+  <!-- ── CENTER: MAP ── -->
+  <main class="center-panel">
+    <div class="map-wrapper">
+      <div id="map"></div>
+
+      <!-- Playback bar -->
+      <div class="playback-bar">
+        <button class="play-btn" id="playBtn" onclick="togglePlayback()" title="Play / Pause">
+          <i class="fa fa-play" id="playIcon"></i>
+        </button>
+        <input type="range" id="playbackSlider" min="0" max="100" value="0"
+               class="playback-slider" oninput="seekPlayback(this.value)"
+               title="Route progress">
+        <span class="playback-speed">1x</span>
+      </div>
+    </div>
+
+    <!-- Navigation controls -->
+    <div class="nav-controls-row">
+      <div class="nav-box">
+        <div class="nav-box-title"><i class="fa fa-truck-moving"></i> VISUAL NAVIGATION</div>
+        <div class="nav-box-sub">Animate vehicle on route</div>
+        <div class="nav-btns">
+          <button class="btn-nav-start" onclick="startNavigation()">Start Navigation</button>
+          <button class="btn-nav-stop"  onclick="stopNavigation()">Stop Navigation</button>
+        </div>
+      </div>
+
+      <div class="nav-box">
+        <div class="nav-box-title"><i class="fa fa-volume-high"></i> VOICE NAVIGATION</div>
+        <div class="nav-box-sub voice-row">
+          <span>Enable Voice</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="voiceToggle">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="nav-btns">
+          <button class="btn-voice-start" onclick="startVoice()">Start Voice</button>
+          <button class="btn-voice-stop"  onclick="stopVoice()">Stop Voice</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ── RIGHT PANEL ── -->
+  <aside class="right-panel">
+
+    <!-- Live analytics -->
+    <div class="rp-section">
+      <div class="rp-header">
+        <i class="fa fa-chart-line"></i> LIVE ROUTE ANALYTICS
+        <button class="expand-btn" title="Expand"><i class="fa fa-up-right-and-down-left-from-center"></i></button>
+      </div>
+      <div class="analytics-chart-wrap">
+        <canvas id="analyticsChart"></canvas>
+      </div>
+      <div class="analytics-legend">
+        <span class="leg-item"><span class="leg-dot" style="background:#2563eb"></span>Distance (km)</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#f97316"></span>Fuel (₹)</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#22c55e"></span>Traffic (min)</span>
+      </div>
+      <div class="analytics-grid">
+        <div class="analytics-card">
+          <div class="ac-label">Distance</div>
+          <div class="ac-val" id="aDistance">—</div>
+        </div>
+        <div class="analytics-card">
+          <div class="ac-label">ETA</div>
+          <div class="ac-val" id="aEta">—</div>
+        </div>
+        <div class="analytics-card">
+          <div class="ac-label">Fuel Cost</div>
+          <div class="ac-val" id="aFuel">—</div>
+        </div>
+        <div class="analytics-card green-card">
+          <div class="ac-label">Traffic Delay</div>
+          <div class="ac-val" id="aTraffic">—</div>
+        </div>
+        <div class="analytics-card">
+          <div class="ac-label">Stops</div>
+          <div class="ac-val" id="aStops">5</div>
+        </div>
+        <div class="analytics-card green-card">
+          <div class="ac-label">Efficiency</div>
+          <div class="ac-val" id="aEfficiency">95%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Directions -->
+    <div class="rp-section">
+      <div class="rp-header">
+        <i class="fa fa-compass"></i> TURN-BY-TURN DIRECTIONS
+        <button class="expand-btn" title="Expand"><i class="fa fa-up-right-and-down-left-from-center"></i></button>
+      </div>
+      <ul id="directions" class="directions-list">
+        <li style="color:#94a3b8;font-size:11px;padding:6px;">
+          Click "Optimize Route" to load directions.
+        </li>
+      </ul>
+      <button class="view-all-btn" onclick="toggleAllDirections()">
+        View Full Directions <i class="fa fa-chevron-down"></i>
+      </button>
+    </div>
+
+  </aside>
+
+</div><!-- /.layout -->
+
+<!-- ══════════════════ STATUS BAR ══════════════════ -->
+<footer class="statusbar">
+  <span><i class="fa fa-diagram-project"></i> Algorithm: <b id="sbAlgo">Dijkstra (Shortest Path)</b></span>
+  <span><i class="fa fa-bolt"></i> Mode: <b id="sbMode">Shortest Route (Distance)</b></span>
+  <span><i class="fa fa-truck"></i> Vehicle: <b id="sbVehicle">Truck 1</b></span>
+  <span><i class="fa fa-clock"></i> Updated: <b id="sbUpdated">—</b></span>
+  <span class="sb-success"><i class="fa fa-circle-check"></i> Route optimized successfully</span>
+</footer>
+
+<!-- ══════════════════ SCRIPTS ══════════════════ -->
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<!-- Leaflet Routing Machine -->
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js" crossorigin=""></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- App -->
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+</body>
+</html>
